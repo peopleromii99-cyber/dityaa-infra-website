@@ -151,6 +151,7 @@ header.scrolled{transform:translateY(-3px);opacity:.97}
 <div class="lightbox" id="lightbox"><button class="close" id="closeLightbox">×</button><img id="lightboxImg" alt="Gallery preview"></div>
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-analytics.js";
@@ -169,6 +170,11 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 try { getAnalytics(firebaseApp); } catch (_) {}
 const db = getFirestore(firebaseApp);
+
+const EMAILJS_PUBLIC_KEY = "sBtuswaRR-_695dR0";
+const EMAILJS_SERVICE_ID = "service_wzeoxek";
+const EMAILJS_TEMPLATE_ID = "template_v5fvuzy";
+emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 
 const $=s=>document.querySelector(s);
 const toast=(msg)=>{const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(window.tt);window.tt=setTimeout(()=>t.classList.remove("show"),3000)};
@@ -214,9 +220,34 @@ $("#appointmentForm").addEventListener("submit",async e=>{
      transaction.set(appointmentRef,item);
      transaction.set(slotRef,{appointmentId:appointmentRef.id,date:dateValue,time:timeValue,status:"booked",createdAt:serverTimestamp()});
    });
+
+   const emailMessage = [
+     "New Dityaa Infra appointment request",
+     "",
+     `Name: ${item.name}`,
+     `Phone: ${item.phone}`,
+     `Email: ${item.email || "Not provided"}`,
+     `Date: ${item.date}`,
+     `Time: ${item.time}`,
+     `Visit Type: ${item.visitType}`,
+     `Message: ${item.message || "No message"}`
+   ].join("\\n");
+
+   try {
+     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+       name: item.name,
+       email: item.email || "",
+       title: `Appointment Request — ${item.date} ${item.time}`,
+       message: emailMessage
+     });
+     toast("Appointment submitted. Email notification sent.");
+   } catch(emailErr) {
+     console.error("EmailJS error:", emailErr);
+     toast("Appointment submitted successfully. Email notification could not be sent.");
+   }
+
    e.target.reset();
    date.min=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
-   toast("Appointment request submitted successfully.");
  }catch(err){
    if(err?.message==="SLOT_TAKEN") toast("That time is already booked. Please choose another slot.");
    else { console.error(err); toast("Could not submit right now. Please try again."); }
